@@ -101,7 +101,7 @@ const App = () => {
       Donne un encouragement court et une prière. 
       Réponds uniquement en JSON valide avec les clés "encouragement" et "prayer".`;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
