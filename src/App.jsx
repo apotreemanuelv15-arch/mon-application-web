@@ -24,7 +24,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 const appId = import.meta.env.VITE_APP_ID || 'qg-josue-global';
 const apiKey = import.meta.env.VITE_GEMINI_KEY;
 
@@ -101,7 +103,7 @@ const App = () => {
       Donne un encouragement court et une prière. 
       Réponds uniquement en JSON valide avec les clés "encouragement" et "prayer".`;
 
-   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
