@@ -1,19 +1,17 @@
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, initializeFirestore } from 'firebase/firestore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
-  getFirestore, collection, doc, setDoc, 
-  onSnapshot, query, addDoc, serverTimestamp 
+  getFirestore, collection, doc, setDoc, getDoc, 
+  onSnapshot, query, addDoc, serverTimestamp, initializeFirestore 
 } from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { 
-  getAuth, signInAnonymously, onAuthStateChanged 
-} from 'firebase/auth';
-import { 
-  Shield, User, TrendingUp, Video, 
-  Award, Zap, BookOpen, Lock, Share2, LogOut, Globe, Radio
+  Shield, User, Send, TrendingUp, Video, 
+  Award, Zap, BookOpen, Volume2, 
+  Lock, Share2, LogOut, Globe, MessageSquare
 } from 'lucide-react';
 
-// --- CONFIGURATION SÉCURISÉE ---
+// --- CONFIGURATION ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -25,45 +23,61 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// CORRECTIF CRUCIAL : Force la connexion même si le navigateur bloque
 const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
-const appId = import.meta.env.VITE_APP_ID || 'qg-josue-global';
-const apiKey = import.meta.env.VITE_GEMINI_KEY;
 
+const appId = "qg-josue-global";
+const apiKey = import.meta.env.VITE_GEMINI_KEY;
 const ACCESS_CODE = "JOSUE24"; 
 
 const translations = {
+  en: {
+    welcome: "Operational HQ",
+    subtitle: "Spiritual combat space assisted by AI.",
+    enter: "Enter Meditation",
+    login_title: "Secure Access",
+    nav_members: "Members",
+    nav_mod: "Moderator",
+    meditation_title: "Daily Meditation",
+    submit: "Submit to HQ",
+    ai_feedback: "Gemini AI Analysis",
+    live_chat: "LIVE COMMS",
+    type_msg: "Message to HQ..."
+  },
   fr: {
     welcome: "QG Opérationnel",
-    subtitle: "Bienvenue dans votre espace de combat spirituel assisté par IA.",
+    subtitle: "Espace de combat spirituel assisté par IA.",
     enter: "Entrer en Méditation",
-    login_title: "Accès Sécurisé QG",
-    login_placeholder: "Code de combat...",
-    validate: "Valider",
+    login_title: "Accès Sécurisé",
     nav_members: "Membres",
     nav_mod: "Modérateur",
-    rank_soldier: "Soldat de la Parole",
-    rank_general: "Général de Foi",
     meditation_title: "Méditation du Jour",
-    name_label: "Nom du Guerrier",
-    verse_label: "Verset (Ex: Jean 3:16)",
-    revelation_label: "Votre révélation...",
     submit: "Soumettre au QG",
-    analyzing: "Analyse IA...",
     ai_feedback: "Analyse Gemini IA",
-    prayer_label: "Prière :",
     live_chat: "COMMUNICATIONS LIVE",
-    type_msg: "Message pour le QG...",
-    join_live: "WAR ROOM",
-    no_reports: "En attente de rapports...",
-    invalid_code: "Code invalide !"
+    type_msg: "Message pour le QG..."
+  },
+  pt: {
+    welcome: "QG Operacional",
+    subtitle: "Espaço de combate espiritual assistido por IA.",
+    enter: "Entrar em Meditação",
+    login_title: "Acesso Seguro",
+    nav_members: "Membros",
+    nav_mod: "Moderador",
+    meditation_title: "Meditação Diária",
+    submit: "Enviar ao QG",
+    ai_feedback: "Análise da IA Gemini",
+    live_chat: "COMUNICAÇÕES AO VIVO",
+    type_msg: "Mensagem para o QG..."
   }
 };
 
 const App = () => {
   const [lang, setLang] = useState('fr'); 
-  const t = useMemo(() => translations[lang] || translations.fr, [lang]);
+  const t = useMemo(() => translations[lang], [lang]);
   const [user, setUser] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authCode, setAuthCode] = useState("");
@@ -74,190 +88,140 @@ const App = () => {
   const [userData, setUserData] = useState({ level: 1, xp: 0 });
   const [geminiResult, setGeminiResult] = useState(null);
 
-  const currentTitle = useMemo(() => userData.level > 5 ? t.rank_general : t.rank_soldier, [userData.level, t]);
-
   useEffect(() => {
-    signInAnonymously(auth).catch(console.error);
-    return onAuthStateChanged(auth, setUser);
+    signInAnonymously(auth).catch(e => console.error("Auth Error", e));
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
   }, []);
 
   useEffect(() => {
     if (!user || !isAuthorized) return;
-    const unsubReports = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'reports')), (snap) => {
-      setReports(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+    const qReports = query(collection(db, 'reports'));
+    const unsubReports = onSnapshot(qReports, (snap) => {
+      setReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    const unsubChat = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'chat')), (snap) => {
-      setLiveMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)));
+    const qChat = query(collection(db, 'chat'));
+    const unsubChat = onSnapshot(qChat, (snap) => {
+      setLiveMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return () => { unsubReports(); unsubChat(); };
   }, [user, isAuthorized]);
 
-  // --- FONCTION IA CORRIGÉE (VERSION ROBUSTE) ---
   const analyzeWithAI = async (formData) => {
-    if (!user || !apiKey) {
-        alert("Erreur : Clé IA non configurée.");
-        return;
-    }
     setStatus('loading');
+    const prompt = `Spiritual Mentor. Analyze. Language: ${lang}. Return JSON only: { "encouragement": "...", "prayer": "...", "xp_gain": 20 }. Verse: ${formData.verse} | Text: ${formData.text}`;
     try {
-      const promptText = `Analyse spirituelle. Verset: ${formData.verse}. Révélation: ${formData.text}. 
-      Donne un encouragement court et une prière. 
-      Réponds uniquement en JSON valide avec les clés "encouragement" et "prayer".`;
-
-const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST', 
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }]
-        })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
-      
       const data = await res.json();
-      
-      if (data.candidates && data.candidates[0]) {
-        let rawText = data.candidates[0].content.parts[0].text;
-        // Nettoyage des balises Markdown si présentes
-        const cleanText = rawText.replace(/```json|```/g, "").trim();
-        const result = JSON.parse(cleanText);
-        
-        setGeminiResult(result);
-        
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), {
-          uid: user.uid, 
-          name: formData.name, 
-          verse: formData.verse, 
-          text: formData.text, 
-          aiFeedback: result, 
-          timestamp: serverTimestamp()
-        });
-        
-        const newXp = userData.xp + 20;
-        setUserData({ level: newXp >= 100 ? userData.level + 1 : userData.level, xp: newXp % 100 });
-        setStatus('success');
-      } else {
-        throw new Error("Réponse vide de l'IA");
-      }
+      const result = JSON.parse(data.candidates[0].content.parts[0].text);
+      setGeminiResult(result);
+      await addDoc(collection(db, 'reports'), {
+        name: formData.name, verse: formData.verse, text: formData.text,
+        aiFeedback: result, timestamp: serverTimestamp()
+      });
+      setStatus('success');
     } catch (e) { 
-      console.error("Erreur détaillée IA:", e);
-      setStatus('idle');
-      alert("Échec de l'analyse. Vérifiez que la clé Gemini n'a pas de guillemets sur Vercel.");
+      console.error(e);
+      setStatus('idle'); 
     }
   };
 
-  const sendMessage = async (text) => {
-    if (!text.trim() || !user) return;
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chat'), {
-      uid: user.uid, userName: userData.name || "Soldat", text: text, timestamp: serverTimestamp()
-    });
+  const shareToWhatsApp = (r) => {
+    const text = `*⚔️ QG JOSUÉ 1:8 - RAPPORT ⚔️*\n\n*👤 GUERRIER:* ${r.name}\n*📖 VERSET:* ${r.verse}\n\n"${r.text}"\n\n*🕊️ RÉPONSE IA:* ${r.aiFeedback?.encouragement}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-[#08080a] flex flex-col items-center justify-center p-6 text-slate-200">
-        <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-[2.5rem] p-10 backdrop-blur-2xl shadow-2xl space-y-8 text-center">
-          <div className="inline-flex p-5 bg-blue-600/20 rounded-full text-blue-500"><Lock size={42} /></div>
-          <h1 className="text-3xl font-black uppercase text-white">{t.login_title}</h1>
-          <input type="password" placeholder={t.login_placeholder} className="w-full bg-black/60 border border-white/10 rounded-2xl px-6 py-4 text-center text-white outline-none focus:ring-2 focus:ring-blue-600 uppercase" value={authCode} onChange={(e) => setAuthCode(e.target.value.toUpperCase())} />
-          <button onClick={() => authCode === ACCESS_CODE ? setIsAuthorized(true) : alert(t.invalid_code)} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase shadow-lg shadow-blue-600/20"> {t.validate} </button>
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-[2rem] p-8 text-center space-y-6">
+          <Shield size={48} className="mx-auto text-blue-500" />
+          <h1 className="text-2xl font-black text-white uppercase">{t.login_title}</h1>
+          <input type="password" placeholder="CODE JOSUE24" className="w-full bg-black border border-white/10 rounded-xl p-4 text-center text-white"
+            value={authCode} onChange={(e) => setAuthCode(e.target.value.toUpperCase())} />
+          <button onClick={() => authCode === ACCESS_CODE ? setIsAuthorized(true) : alert("Invalide")} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold">VALIDER</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-slate-300 font-sans">
-      <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
-          <div className="bg-blue-600 p-2 rounded-xl"><Shield className="text-white w-6 h-6" /></div>
-          <span className="font-black text-xl text-white tracking-tighter uppercase">JOSUÉ HQ</span>
+    <div className="min-h-screen bg-[#08080a] text-slate-300">
+      <nav className="p-4 border-b border-white/5 flex justify-between items-center bg-black/50 sticky top-0 z-50">
+        <div className="flex items-center gap-2 font-black text-white" onClick={() => setView('home')}>
+          <Shield className="text-blue-500" /> JOSUÉ HQ
         </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => setView('member')} className={`text-xs font-black uppercase ${view === 'member' ? 'text-blue-400' : 'text-gray-500'}`}>{t.nav_members}</button>
-          <button onClick={() => setView('mod')} className={`text-xs font-black uppercase ${view === 'mod' ? 'text-blue-400' : 'text-gray-500'}`}>{t.nav_mod}</button>
-          <button onClick={() => setIsAuthorized(false)} className="text-gray-600 hover:text-red-500 ml-2"><LogOut size={20}/></button>
+        <div className="flex gap-4 items-center">
+          <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+            {['fr', 'en', 'pt'].map(l => (
+              <button key={l} onClick={() => setLang(l)} className={`px-2 py-1 text-[10px] uppercase font-bold ${lang === l ? 'bg-blue-600 text-white' : ''}`}>{l}</button>
+            ))}
+          </div>
+          <button onClick={() => setView('member')} className="text-xs font-bold uppercase">{t.nav_members}</button>
+          <button onClick={() => setView('mod')} className="text-xs font-bold uppercase">{t.nav_mod}</button>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto p-6">
+      <main className="max-w-5xl mx-auto p-6">
         {view === 'home' && (
-          <div className="min-h-[70vh] flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in duration-1000">
-            <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter leading-none uppercase">{t.welcome}</h1>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto font-medium">{t.subtitle}</p>
-            <button onClick={() => setView('member')} className="px-12 py-5 bg-white text-black rounded-full font-black text-lg hover:scale-105 transition-all shadow-2xl shadow-white/5 uppercase">{t.enter}</button>
+          <div className="text-center py-20 space-y-6">
+            <h1 className="text-6xl font-black text-white">{t.welcome}</h1>
+            <p className="text-gray-500">{t.subtitle}</p>
+            <button onClick={() => setView('member')} className="px-10 py-4 bg-white text-black rounded-full font-black uppercase text-sm">Entrer</button>
           </div>
         )}
 
         {view === 'member' && (
-          <div className="grid lg:grid-cols-12 gap-8 animate-in slide-in-from-bottom-6 duration-700">
-            <div className="lg:col-span-8 space-y-8">
-              <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
-                <h2 className="text-2xl font-black text-white mb-6 flex items-center gap-3 uppercase"><BookOpen className="text-blue-500"/> {t.meditation_title}</h2>
-                <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); analyzeWithAI({ name: e.target.name.value, verse: e.target.verse.value, text: e.target.text.value }); }}>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <input name="name" placeholder={t.name_label} required className="bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-600" />
-                    <input name="verse" placeholder={t.verse_label} required className="bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-600" />
-                  </div>
-                  <textarea name="text" placeholder={t.revelation_label} required rows="4" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-600 resize-none"></textarea>
-                  <button disabled={status === 'loading'} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase flex items-center justify-center gap-3">
-                    {status === 'loading' ? t.analyzing : <><Zap size={20}/> {t.submit}</>}
-                  </button>
-                </form>
-              </div>
-              {geminiResult && (
-                <div className="bg-blue-600/10 border border-blue-500/30 rounded-[2.5rem] p-8 space-y-4">
-                  <span className="text-blue-400 font-black uppercase text-[10px] tracking-widest">{t.ai_feedback}</span>
-                  <p className="text-xl font-medium text-white italic">"{geminiResult.encouragement}"</p>
-                  <p className="text-sm text-gray-400 font-medium"><span className="text-blue-400 font-bold">{t.prayer_label}</span> {geminiResult.prayer}</p>
-                </div>
-              )}
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white/5 p-8 rounded-[2rem] border border-white/10 space-y-6">
+              <h2 className="text-2xl font-black text-white flex items-center gap-2"><BookOpen/> {t.meditation_title}</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                analyzeWithAI({ name: e.target.name.value, verse: e.target.verse.value, text: e.target.text.value });
+              }} className="space-y-4">
+                <input name="name" placeholder="Nom" required className="w-full bg-black/40 border border-white/10 rounded-xl p-4" />
+                <input name="verse" placeholder="Verset (ex: Josué 1:8)" required className="w-full bg-black/40 border border-white/10 rounded-xl p-4" />
+                <textarea name="text" placeholder="Révélation..." required rows="4" className="w-full bg-black/40 border border-white/10 rounded-xl p-4" />
+                <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold">{status === 'loading' ? 'Analyse...' : t.submit}</button>
+              </form>
             </div>
-
-            <div className="lg:col-span-4 space-y-8">
-              <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 flex flex-col h-[500px]">
-                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2 mb-4"><Radio size={14} className="text-red-500"/> {t.live_chat}</h4>
-                <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 custom-scrollbar">
-                  {liveMessages.map((m) => (
-                    <div key={m.id} className="p-3 rounded-2xl bg-white/5 border border-white/5">
-                      <span className="font-black text-blue-400 uppercase text-[9px] block mb-1">{m.userName}</span>
-                      <p className="text-gray-200 text-xs leading-relaxed">{m.text}</p>
-                    </div>
-                  ))}
-                </div>
-                <input type="text" placeholder={t.type_msg} className="w-full bg-black/60 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-blue-600" onKeyDown={(e) => { if(e.key === 'Enter' && e.target.value.trim()) { sendMessage(e.target.value); e.target.value = ''; } }} />
+            {geminiResult && (
+              <div className="bg-blue-600/10 border border-blue-600/30 p-8 rounded-[2rem] space-y-4 animate-in zoom-in-95">
+                <h3 className="text-blue-400 font-black uppercase text-xs flex items-center gap-2"><Zap size={14}/> {t.ai_feedback}</h3>
+                <p className="text-white italic">"{geminiResult.encouragement}"</p>
+                <p className="text-sm text-gray-400"><strong>Prière:</strong> {geminiResult.prayer}</p>
               </div>
-              <div className="bg-gradient-to-b from-blue-600/10 to-transparent border border-white/10 rounded-[2.5rem] p-8 text-center space-y-4">
-                <div className="relative inline-block">
-                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-blue-600/30"><Award size={30} className="text-white"/></div>
-                  <div className="absolute -bottom-1 -right-1 bg-white text-black w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px]">{userData.level}</div>
-                </div>
-                <h3 className="text-lg font-black text-white uppercase tracking-tight">{currentTitle}</h3>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
         {view === 'mod' && (
-          <div className="space-y-8 animate-in fade-in duration-700">
-            <header className="flex flex-col md:flex-row justify-between items-center bg-blue-600/10 p-8 rounded-[2.5rem] border border-blue-600/20 gap-6">
-              <h2 className="text-4xl font-black text-white uppercase">{t.nav_mod}</h2>
-              <button onClick={() => window.open(`https://meet.jit.si/${appId}_WarRoom`, '_blank')} className="px-6 py-3 bg-green-600 text-white rounded-xl font-black text-xs flex items-center gap-2 uppercase"><Video size={16}/> Direct Vidéo</button>
-            </header>
-            <div className="grid lg:grid-cols-2 gap-8">
-              {reports.map((r) => (
-                <div key={r.id} className="bg-white/5 border border-white/10 p-6 rounded-[1.5rem] space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-black text-white flex items-center gap-2 uppercase text-sm"><User size={14} className="text-blue-500"/> {r.name}</h4>
-                    <span className="text-[10px] text-blue-400 font-bold uppercase">{r.verse}</span>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-blue-600/10 p-6 rounded-2xl border border-blue-600/20">
+              <h2 className="text-2xl font-black text-white">CONTRÔLE LIVE</h2>
+              <div className="flex gap-4">
+                <button onClick={() => window.open('https://meet.jit.si/JosueHQ_Live', '_blank')} className="px-4 py-2 bg-green-600 rounded-lg text-xs font-bold flex items-center gap-2"><Video size={14}/> ACTIVER AUDIO/VIDEO</button>
+              </div>
+            </div>
+            <div className="grid gap-4">
+              {reports.map(r => (
+                <div key={r.id} className="bg-white/5 p-6 rounded-2xl border border-white/5 flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-blue-400 font-bold text-xs uppercase">{r.verse}</span>
+                    <h4 className="text-white font-black">{r.name}</h4>
+                    <p className="text-gray-400 text-sm italic">"{r.text}"</p>
                   </div>
-                  <p className="text-xs text-gray-400 italic">"{r.text}"</p>
-                  <div className="p-3 bg-blue-600/10 rounded-xl text-[10px] text-blue-300 italic border border-blue-600/10">{r.aiFeedback?.encouragement}</div>
+                  <button onClick={() => shareToWhatsApp(r)} className="p-3 bg-green-600/20 text-green-500 rounded-xl hover:bg-green-600 hover:text-white transition-all"><Share2 size={18}/></button>
                 </div>
               ))}
             </div>
           </div>
         )}
       </main>
-      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.2); border-radius: 10px; }`}</style>
     </div>
   );
 };
