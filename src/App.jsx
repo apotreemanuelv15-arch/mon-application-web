@@ -216,7 +216,7 @@ const App = () => {
             {/* YOUTUBE LIVE ANCRÉ */}
             <section className="bg-black rounded-[2.5rem] border border-white/10 overflow-hidden aspect-video shadow-2xl relative">
               <div className="absolute top-4 left-4 z-10 bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full animate-pulse uppercase">Live QG</div>
-              <iframe width="100%" height="100%" src="https://www.youtube.com/embed/live_stream?channel=VOTRE_ID_CHAINE" frameBorder="0" allowFullScreen></iframe>
+              <iframe width="100%" height="100%" src="https://www.youtube.com/embed/live_stream?channel=UCAUrnN36d0sfMypjsnkFlTA" frameBorder="0" allowFullScreen></iframe>
             </section>
           </div>
 
