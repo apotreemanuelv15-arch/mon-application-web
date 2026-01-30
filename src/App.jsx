@@ -65,8 +65,8 @@ const App = () => {
     setDebugError("");
     setGeminiResult(null);
 
-    // URL CORRIGÉE EN v1beta pour Gemini Flash
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+   // TENTATIVE AVEC GEMINI PRO (Plus robuste)
+const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
 
     try {
       const res = await fetch(url, {
