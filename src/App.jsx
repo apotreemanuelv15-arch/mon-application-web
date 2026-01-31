@@ -73,8 +73,8 @@ const App = () => {
     setDebugError("");
     setGeminiResult(null);
 
-    // CHANGEMENT CRUCIAL : Passage en v1 avec le modèle Flash
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+   // Remplacez UNIQUEMENT la ligne de l'URL dans la fonction analyzeWithAI par celle-ci :
+const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     try {
       const res = await fetch(url, {
