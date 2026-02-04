@@ -19,12 +19,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
-const apiKey = import.meta.env.VITE_GEMINI_KEY; 
+const apiKey = import.meta.env.VITE_GEMINI_KEY; // On garde le nom mais on y mettra la clé Groq gsk_
 
 const translations = {
-  fr: { welcome: "QG Opérationnel", nav_members: "Membres", nav_mod: "Modérateur", submit: "Soumettre au QG", ai_feedback: "Analyse Gemini IA", meditation: "Méditation", placeholder_name: "Votre Nom", placeholder_verse: "Verset", placeholder_text: "Votre révélation...", rank: "Grade" },
-  en: { welcome: "Operational HQ", nav_members: "Members", nav_mod: "Moderator", submit: "Submit to HQ", ai_feedback: "Gemini AI Analysis", meditation: "Meditation", placeholder_name: "Your Name", placeholder_verse: "Verse", placeholder_text: "Your revelation...", rank: "Rank" },
-  pt: { welcome: "QG Operacional", nav_members: "Membros", nav_mod: "Moderador", submit: "Enviar ao QG", ai_feedback: "Análise IA Gemini", meditation: "Meditação", placeholder_name: "Seu Nome", placeholder_verse: "Versículo", placeholder_text: "Sua revelação...", rank: "Patente" }
+  fr: { welcome: "QG Opérationnel", nav_members: "Membres", nav_mod: "Modérateur", submit: "Soumettre au QG", ai_feedback: "Analyse IA Groq", meditation: "Méditation", placeholder_name: "Votre Nom", placeholder_verse: "Verset", placeholder_text: "Votre révélation...", rank: "Grade" },
+  en: { welcome: "Operational HQ", nav_members: "Members", nav_mod: "Moderator", submit: "Submit to HQ", ai_feedback: "Groq AI Analysis", meditation: "Meditation", placeholder_name: "Your Name", placeholder_verse: "Verse", placeholder_text: "Your revelation...", rank: "Rank" },
+  pt: { welcome: "QG Operacional", nav_members: "Membros", nav_mod: "Moderador", submit: "Enviar ao QG", ai_feedback: "Análise IA Groq", meditation: "Meditação", placeholder_name: "Seu Nome", placeholder_verse: "Versículo", placeholder_text: "Sua revelação...", rank: "Patente" }
 };
 
 const getRank = (msgCount) => {
@@ -73,19 +73,36 @@ const App = () => {
     setDebugError("");
     setGeminiResult(null);
 
-const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // MOTEUR GROQ - LLAMA 3
+    const url = "https://api.groq.com/openai/v1/chat/completions";
+
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: `Mentor spirituel. Analyse en ${lang}. Réponds en JSON: { "encouragement": "...", "prayer": "..." }. Texte: ${formData.text}` }] }] })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: `Tu es un mentor spirituel chrétien. Analyse en ${lang}. Réponds obligatoirement en JSON pur avec cette structure: { "encouragement": "...", "prayer": "..." }.`
+            },
+            {
+              role: "user",
+              content: `Verset: ${formData.verse}. Révélation: ${formData.text}`
+            }
+          ],
+          response_format: { type: "json_object" }
+        })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || "Erreur Google");
+      if (!res.ok) throw new Error(data.error?.message || "Erreur Groq");
 
-      const rawText = data.candidates[0].content.parts[0].text;
-      const cleanJson = JSON.parse(rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1));
+      const cleanJson = JSON.parse(data.choices[0].message.content);
       
       setGeminiResult(cleanJson);
       await addDoc(collection(db, 'reports'), { ...formData, aiFeedback: cleanJson, timestamp: serverTimestamp(), uid: user.uid });
@@ -148,15 +165,15 @@ const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flas
                 <h2 className="text-xl font-black text-white flex items-center gap-3 mb-8 italic uppercase"><BookOpen className="text-blue-600" /> {t.meditation}</h2>
                 <form onSubmit={analyzeWithAI} className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
-                    <input name="name" placeholder={t.placeholder_name} required className="bg-black border border-white/10 rounded-xl p-5 text-white outline-none focus:border-blue-600" />
+                    <input name="name" placeholder={t.placeholder_name} defaultValue={localStorage.getItem('josue_name') || ""} required className="bg-black border border-white/10 rounded-xl p-5 text-white outline-none focus:border-blue-600" />
                     <input name="verse" placeholder={t.placeholder_verse} required className="bg-black border border-white/10 rounded-xl p-5 text-white outline-none focus:border-blue-600" />
                   </div>
                   <textarea name="text" placeholder={t.placeholder_text} required rows="3" className="w-full bg-black border border-white/10 rounded-xl p-5 text-white outline-none focus:border-blue-600" />
                   <button className="w-full py-5 bg-blue-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-600/20">
-                    {status === 'loading' ? 'ANALYSE...' : t.submit}
+                    {status === 'loading' ? 'COMMUNICATION...' : t.submit}
                   </button>
                 </form>
-                {debugError && <div className="mt-4 p-4 bg-red-900/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-mono uppercase">Erreur: {debugError}</div>}
+                {debugError && <div className="mt-4 p-4 bg-red-900/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-mono uppercase italic">Erreur: {debugError}</div>}
               </section>
             )}
 
