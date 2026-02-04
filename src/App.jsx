@@ -5,7 +5,7 @@ import {
   serverTimestamp, initializeFirestore, orderBy, limit 
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { Shield, Send, Zap, BookOpen, Share2, MessageSquare, Award, Star, Video, Radio } from 'lucide-react';
+import { Shield, Send, Zap, BookOpen, Share2, MessageSquare, Award, Star, Video, Radio, Target } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -27,21 +27,24 @@ const translations = {
     ai_feedback: "Analyse IA Groq", meditation: "Méditation", placeholder_name: "Votre Nom", 
     placeholder_verse: "Verset", placeholder_text: "Votre révélation...", rank: "Grade",
     live_comm: "COMMUNICATIONS LIVE", loading: "COMMUNICATION...", mod_title: "COMMANDEMENT DU FRONT",
-    launch_live: "LANCER LIVE STUDIO", chat_placeholder: "Écrire au front...", join_live: "REJOINDRE LE LIVE"
+    launch_live: "LANCER LIVE STUDIO", chat_placeholder: "Écrire au front...", join_live: "REJOINDRE LE LIVE",
+    onction: "Niveau d'Onction"
   },
   en: { 
     welcome: "HQ Operational", nav_members: "Members", nav_mod: "Moderator", submit: "Submit to HQ", 
     ai_feedback: "Groq AI Analysis", meditation: "Meditation", placeholder_name: "Your Name", 
     placeholder_verse: "Verse", placeholder_text: "Your revelation...", rank: "Rank",
     live_comm: "LIVE COMMUNICATIONS", loading: "COMMUNICATING...", mod_title: "FRONT COMMAND",
-    launch_live: "START LIVE STUDIO", chat_placeholder: "Write to the front...", join_live: "JOIN LIVE"
+    launch_live: "START LIVE STUDIO", chat_placeholder: "Write to the front...", join_live: "JOIN LIVE",
+    onction: "Anointing Level"
   },
   pt: { 
     welcome: "QG Operacional", nav_members: "Membros", nav_mod: "Moderador", submit: "Enviar ao QG", 
     ai_feedback: "Análise IA Groq", meditation: "Meditação", placeholder_name: "Seu Nome", 
     placeholder_verse: "Versículo", placeholder_text: "Sua revelação...", rank: "Patente",
     live_comm: "COMUNICAÇÕES AO VIVO", loading: "COMUNICANDO...", mod_title: "COMANDO DE FRENTE",
-    launch_live: "INICIAR LIVE STUDIO", chat_placeholder: "Escrever para a frente...", join_live: "ENTRAR NO LIVE"
+    launch_live: "INICIAR LIVE STUDIO", chat_placeholder: "Escrever para a frente...", join_live: "ENTRAR NO LIVE",
+    onction: "Nível de Unção"
   }
 };
 
@@ -97,9 +100,9 @@ const App = () => {
     setDebugError("");
 
     const systemPrompts = {
-      fr: "Tu es un mentor spirituel chrétien. Tu DOIS répondre exclusivement en FRANÇAIS. Format JSON: { \"encouragement\": \"...\", \"prayer\": \"...\" }.",
-      en: "You are a Christian spiritual mentor. You MUST respond exclusively in ENGLISH. JSON format: { \"encouragement\": \"...\", \"prayer\": \"...\" }.",
-      pt: "Você é um mentor espiritual cristão. Você DEVE responder exclusivamente em PORTUGUÊS. Formato JSON: { \"encouragement\": \"...\", \"prayer\": \"...\" }."
+      fr: "Tu es un mentor spirituel chrétien. Analyse et réponds obligatoirement en FRANÇAIS sous format JSON: { \"encouragement\": \"...\", \"prayer\": \"...\", \"score\": \"85%\", \"merit\": \"Révélation Profonde\" }.",
+      en: "You are a Christian spiritual mentor. Respond strictly in ENGLISH in JSON format: { \"encouragement\": \"...\", \"prayer\": \"...\", \"score\": \"85%\", \"merit\": \"Deep Revelation\" }.",
+      pt: "Você é um mentor espiritual cristão. Responda estritamente em PORTUGUÊS no formato JSON: { \"encouragement\": \"...\", \"prayer\": \"...\", \"score\": \"85%\", \"merit\": \"Revelação Profunda\" }."
     };
 
     try {
@@ -112,7 +115,7 @@ const App = () => {
             { role: "system", content: systemPrompts[lang] },
             { role: "user", content: `Verset: ${formData.verse}. Texte: ${formData.text}` }
           ],
-          temperature: 0.5,
+          temperature: 0.6,
           response_format: { type: "json_object" }
         })
       });
@@ -147,7 +150,7 @@ const App = () => {
         <div className="border border-white/10 p-10 rounded-3xl bg-white/5 text-center space-y-6">
           <Shield size={48} className="mx-auto text-blue-600" />
           <h1 className="text-xl font-black italic tracking-tighter uppercase">QG JOSUÉ 1:8</h1>
-          <input type="password" autoFocus placeholder="CODE JOSUE24" className="bg-black border border-white/20 p-4 rounded-xl text-center w-full outline-none focus:border-blue-600" 
+          <input type="password" autoFocus placeholder="CODE JOSUE24" className="bg-black border border-white/20 p-4 rounded-xl text-center w-full outline-none focus:border-blue-600 text-white" 
             onKeyUp={(e) => e.target.value.toUpperCase() === "JOSUE24" && setIsAuthorized(true)} />
         </div>
       </div>
@@ -192,24 +195,33 @@ const App = () => {
 
             {geminiResult && view === 'member' && (
               <section className="bg-gradient-to-br from-blue-700 to-blue-900 p-8 rounded-[2rem] text-white shadow-2xl animate-in slide-in-from-bottom-4">
-                <h3 className="text-[10px] font-black mb-4 tracking-widest uppercase flex items-center gap-2"><Zap size={16} fill="white"/> {t.ai_feedback}</h3>
-                <p className="text-2xl font-bold mb-6 italic italic">"{geminiResult.encouragement}"</p>
+                <div className="flex justify-between items-start mb-6">
+                  <h3 className="text-[10px] font-black tracking-widest uppercase flex items-center gap-2"><Zap size={16} fill="white"/> {t.ai_feedback}</h3>
+                  <div className="text-right">
+                    <span className="block text-2xl font-black">{geminiResult.score}</span>
+                    <span className="text-[8px] uppercase font-bold opacity-80">{geminiResult.merit}</span>
+                  </div>
+                </div>
+                <p className="text-xl font-bold mb-6 italic leading-snug">"{geminiResult.encouragement}"</p>
                 <div className="bg-black/20 p-6 rounded-2xl border border-white/10 text-lg italic">{geminiResult.prayer}</div>
               </section>
             )}
 
             {view === 'mod' && (
               <section className="space-y-4">
-                <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10 flex justify-between items-center shadow-lg">
+                <div className="bg-white/5 p-6 rounded-[2rem] border border-white/10 flex justify-between items-center">
                   <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">{t.mod_title}</h2>
                   <button onClick={() => window.open('https://meet.jit.si/JosueHQ_Live', '_blank')} className="px-6 py-3 bg-red-600 text-white rounded-full font-black text-[10px] animate-pulse flex items-center gap-2">
                     <Video size={14}/> {t.launch_live}
                   </button>
                 </div>
                 {reports.map(r => (
-                  <div key={r.id} className="bg-white/5 p-6 rounded-2xl border border-white/5 flex justify-between items-center">
+                  <div key={r.id} className="bg-white/5 p-6 rounded-2xl border border-white/5 flex justify-between items-center group">
                     <div className="space-y-1">
-                      <span className="text-blue-500 text-[9px] font-black uppercase tracking-widest">{r.verse} | {r.name}</span>
+                      <div className="flex items-center gap-2">
+                         <span className="text-blue-500 text-[9px] font-black uppercase tracking-widest">{r.verse} | {r.name}</span>
+                         {r.aiFeedback?.score && <span className="text-[8px] bg-blue-600 px-2 rounded-full text-white font-bold">{r.aiFeedback.score}</span>}
+                      </div>
                       <p className="text-white text-base italic opacity-90 font-medium">"{r.text}"</p>
                     </div>
                     <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`${r.name}: ${r.text}`)}`, '_blank')} className="p-4 bg-white/5 rounded-2xl hover:bg-green-600 hover:text-white transition-all"><Share2 size={20}/></button>
@@ -223,10 +235,10 @@ const App = () => {
             </section>
           </div>
 
-          <aside className="lg:col-span-4 flex flex-col h-[750px] bg-white/5 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl">
+          <aside className="lg:col-span-4 flex flex-col h-[750px] bg-white/5 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl backdrop-blur-md">
             <div className="p-6 border-b border-white/10 bg-black/40 font-black text-white text-[10px] uppercase tracking-widest flex items-center justify-between">
               <div className="flex items-center gap-2"><MessageSquare className="text-blue-500" size={16}/> {t.live_comm}</div>
-              <button onClick={() => window.open('https://meet.jit.si/JosueHQ_Live', '_blank')} className="bg-red-600 px-2 py-1 rounded text-[8px] flex items-center gap-1 animate-pulse">
+              <button onClick={() => window.open('https://meet.jit.si/JosueHQ_Live', '_blank')} className="bg-red-600 px-3 py-1.5 rounded-full text-[8px] flex items-center gap-1 animate-pulse hover:scale-105 transition-transform">
                 <Radio size={10}/> {t.join_live}
               </button>
             </div>
@@ -240,7 +252,7 @@ const App = () => {
                       <span className={`text-[8px] font-black uppercase ${rank.color} flex items-center gap-1`}>{rank.icon} {rank.name}</span>
                       <span className="text-[8px] font-black text-gray-500 uppercase italic">| {m.senderName}</span>
                     </div>
-                    <div className={`max-w-[90%] p-4 rounded-2xl text-[13px] font-medium leading-relaxed ${m.uid === user?.uid ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-200 border border-white/5'}`}>{m.text}</div>
+                    <div className={`max-w-[90%] p-4 rounded-2xl text-[13px] font-medium leading-relaxed ${m.uid === user?.uid ? 'bg-blue-600 text-white shadow-lg' : 'bg-white/10 text-slate-200 border border-white/5'}`}>{m.text}</div>
                   </div>
                 );
               })}
@@ -248,7 +260,7 @@ const App = () => {
             </div>
             <form onSubmit={sendMsg} className="p-4 bg-black border-t border-white/10 flex gap-2">
               <input value={msgInput} onChange={(e) => setMsgInput(e.target.value)} placeholder={t.chat_placeholder} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-xs text-white outline-none focus:border-blue-600 transition-all" />
-              <button type="submit" className="p-4 bg-white text-black rounded-xl hover:bg-blue-600 hover:text-white transition-all"><Send size={20}/></button>
+              <button type="submit" className="p-4 bg-white text-black rounded-xl hover:bg-blue-600 hover:text-white transition-all active:scale-95"><Send size={20}/></button>
             </form>
           </aside>
         </div>
