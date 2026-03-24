@@ -1,10 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web</title>
+    
+    <title>Josué 1:8 - Méditation</title>
+
+    <link rel="manifest" href="/manifest.json">
+    
+    <meta name="theme-color" content="#0066cc">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('✅ Service Worker prêt !', reg))
+            .catch(err => console.log('❌ Erreur Service Worker', err));
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
